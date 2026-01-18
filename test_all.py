@@ -31,7 +31,7 @@ import pytest
     ],
 )
 def test_grid_state_print(box_size, expected_result, capsys):
-    grid_state = GridState(size=4, box_size=box_size)
+    grid_state = GridState(size=4, box_size=box_size, max_value=4)
     grid_state.data = [
         [1, 2, 3, 4],
         [3, 4, 1, 2],

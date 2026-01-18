@@ -1,4 +1,4 @@
-from sudoku import SudokuState, SudokuRules
+from sudoku import SudokuState
 from main import GameEngine
 
 
@@ -16,8 +16,7 @@ def test_easy():
             [None, 9, 4, 8, None, None, None, 1, 3],
         ]
     )
-    sudoku_rules = SudokuRules()
-    game_engine = GameEngine(sudoku_state, sudoku_rules)
+    game_engine = GameEngine(sudoku_state)
     result = game_engine.solve()
 
     assert result.data == [
@@ -47,8 +46,7 @@ def test_medium():
             [3, None, 5, None, None, None, None, 2, 1],
         ]
     )
-    sudoku_rules = SudokuRules()
-    game_engine = GameEngine(sudoku_state, sudoku_rules)
+    game_engine = GameEngine(sudoku_state)
     result = game_engine.solve()
     result.print()
     assert result.data == [
@@ -78,8 +76,7 @@ def test_extreme():
             [6, 7, None, None, None, 9, 2, None, None],
         ]
     )
-    sudoku_rules = SudokuRules()
-    game_engine = GameEngine(sudoku_state, sudoku_rules)
+    game_engine = GameEngine(sudoku_state)
     result = game_engine.solve()
     result.print()
     assert result.data == [

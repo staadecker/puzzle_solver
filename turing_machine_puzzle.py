@@ -86,7 +86,6 @@ def solve(cards):
 
 def find_guess(cards, settings: tuple[int, ...]) -> tuple[int, tuple[int, int, int]]:
     valid_guess = set()
-    last_guess: tuple[int, int, int] | None = None
     for guess in product(range(1, 10), repeat=3):
         if all(card.rule(guess, setting) for card, setting in zip(cards, settings)):
             valid_guess.add(guess)
