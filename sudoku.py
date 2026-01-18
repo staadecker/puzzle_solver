@@ -1,90 +1,84 @@
-from main import GameRules, GameEngine, GridState, Move
-import dataclasses
+from main import GameRules, GameEngine, GridState, Move, ConstraintNoDuplicates
+from typing import Iterable
 
 
 class SudokuState(GridState):
     def __init__(self, starting_grid) -> None:
         super().__init__(size=9, box_size=3)
-        self.grid = starting_grid
+        self.data = starting_grid
 
 
-@dataclasses.dataclass
-class SudokuMovePlace:
-    row: int
-    col: int
-    value: int
+class SudokuMovePlace(Move):
+    def __init__(self, row: int, col: int, value: int):
+        super().__init__()
+        self.row = row
+        self.col = col
+        self.value = value
 
-    def play(self, state: SudokuState) -> None:
-        state.grid[self.row][self.col] = self.value
+    def _play(self, state: SudokuState) -> None:
+        state.data[self.row][self.col] = self.value
 
-    def undo(self, state: SudokuState) -> None:
-        state.grid[self.row][self.col] = None
+    def _undo(self, state: SudokuState) -> None:
+        state.data[self.row][self.col] = None
 
 
 class SudokuRules(GameRules):
-    def generate_moves(self, data: SudokuState) -> list[list[Move]]:
-        moves = []
+    def __init__(self) -> None:
+        constraints = (
+            [
+                ConstraintNoDuplicates(
+                    state_to_values=lambda state, r=row: state.row(r), name=f"Row {row}"
+                )
+                for row in range(9)
+            ]
+            + [
+                ConstraintNoDuplicates(
+                    state_to_values=lambda state, col=col: state.column(col),
+                    name=f"Column {col}",
+                )
+                for col in range(9)
+            ]
+            + [
+                ConstraintNoDuplicates(
+                    state_to_values=lambda state,
+                    box_row=box_row,
+                    box_col=box_col: state.box(box_row, box_col),
+                    name=f"Box {box_row}, {box_col}",
+                )
+                for box_row in range(3)
+                for box_col in range(3)
+            ]
+        )
+        super().__init__(constraints)
+
+    def _generate_moves(self, state: SudokuState) -> Iterable[list[Move]]:
         for row in range(9):
             for col in range(9):
-                if data.grid[row][col] is None:
+                if state.data[row][col] is None:
                     move_options = []
                     for value in range(1, 10):
                         move_options.append(SudokuMovePlace(row, col, value))
-                    moves.append(move_options)
+                    yield move_options
 
-        return moves
-
-    def is_legal(self, data: SudokuState) -> bool:
-        def has_duplicates(lst):
-            seen = set()
-            for item in lst:
-                if item is not None:
-                    if item in seen:
-                        return True
-                    seen.add(item)
-            return False
-
-        for row in data.grid:
-            if has_duplicates(row):
-                return False
-
-        for col in range(9):
-            if has_duplicates(data.grid[row][col] for row in range(9)):
-                return False
-
-        for box_row in range(3):
-            for box_col in range(3):
-                box = []
-                for i in range(3):
-                    for j in range(3):
-                        box.append(data.grid[box_row * 3 + i][box_col * 3 + j])
-                if has_duplicates(box):
-                    return False
-
-        return True
-
-    def is_solved(self, data: SudokuState) -> bool:
-        for row in data.grid:
-            if any(cell is None for cell in row):
-                return False
-        return True
+    def is_solved(self, state: SudokuState) -> bool:
+        return all(cell is not None for row in state.data for cell in row)
 
 
 if __name__ == "__main__":
     sudoku_state = SudokuState(
         [
-            [None, None, 9, 2, 1, 8, None, None, None],
-            [1, 7, None, None, 9, 6, 8, None, None],
-            [None, 4, None, None, 5, None, None, None, 6],
-            [4, 5, 1, None, 6, None, 3, 7, None],
-            [None, None, None, None, None, 5, None, None, 9],
-            [9, None, 2, 3, 7, None, 5, None, None],
-            [6, None, None, 5, None, 1, None, None, None],
-            [None, None, None, None, 4, 9, 2, 5, 7],
-            [None, 9, 4, 8, None, None, None, 1, 3],
+            [3, None, None, None, None, 8, None, None, 9],
+            [7, None, None, 5, None, None, None, 2, None],
+            [None, None, None, None, None, None, None, None, None],
+            [None, 4, 6, None, None, None, None, None, None],
+            [2, None, None, 1, None, None, None, 3, None],
+            [None, None, 3, 8, None, None, 4, None, None],
+            [8, None, None, None, None, 7, None, 5, None],
+            [None, None, None, None, None, 6, None, 4, None],
+            [6, 7, None, None, None, 9, 2, None, None],
         ]
     )
     sudoku_rules = SudokuRules()
     game_engine = GameEngine(sudoku_state, sudoku_rules)
-    game_engine.solve()
-    game_engine.state.print()
+    solution = game_engine.solve()
+    solution.print()
