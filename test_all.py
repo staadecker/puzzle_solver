@@ -1,6 +1,4 @@
 from main import GridState
-import io
-import sys
 import pytest
 
 

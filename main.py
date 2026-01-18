@@ -10,8 +10,8 @@ class State(ABC):
     @abstractmethod
     def print(self): ...
 
-    @abstractmethod
-    def copy(self) -> Self: ...
+    def copy(self) -> Self:  # not abstract method so we can run test
+        raise NotImplementedError()
 
     @abstractmethod
     def generate_legal_moves(self) -> list[list["Move"]]:
@@ -112,8 +112,8 @@ class GridState(State, Generic[S]):
             all_legal_moves.append(legal_moves)
         return all_legal_moves
 
-    @abstractmethod
-    def _generate_legal_moves_for_cell(self, row: int, col: int) -> list[Move[S]]: ...
+    def _generate_legal_moves_for_cell(self, row: int, col: int) -> list[Move[S]]:
+        raise NotImplementedError()
 
     def print(self):
         if self._box_size:
