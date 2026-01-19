@@ -3,13 +3,12 @@ from main import GameEngine, GridState, GridMove
 
 class SudokuState(GridState):
     def __init__(self, starting_grid) -> None:
-        super().__init__(size=9, max_value=9, box_size=3)
-        self.data = starting_grid
+        super().__init__(size=9, max_value=9, box_size=3, starting_state=starting_grid)
 
     def copy(self):
         return SudokuState([row[:] for row in self.data])
 
-    def _generate_legal_moves_for_cell(self, row: int, col: int) -> list[GridMove]:
+    def _generate_plausible_moves_for_cell(self, row: int, col: int) -> list[GridMove]:
         options = [True] * 9
         for cell in self.row(row):
             if cell is not None:
@@ -42,5 +41,6 @@ if __name__ == "__main__":
         ]
     )
     game_engine = GameEngine(sudoku_state)
+    print(sudoku_state)
     solution = game_engine.solve()
-    solution.print()
+    print(solution)

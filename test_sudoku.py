@@ -48,7 +48,7 @@ def test_medium():
     )
     game_engine = GameEngine(sudoku_state)
     result = game_engine.solve()
-    result.print()
+    print(result)
     assert result.data == [
         [6, 3, 4, 2, 1, 7, 8, 9, 5],
         [9, 7, 1, 8, 5, 4, 6, 3, 2],
@@ -78,7 +78,7 @@ def test_extreme():
     )
     game_engine = GameEngine(sudoku_state)
     result = game_engine.solve()
-    result.print()
+    print(result)
     assert result.data == [
         [3, 2, 5, 6, 4, 8, 7, 1, 9],
         [7, 6, 9, 5, 3, 1, 8, 2, 4],

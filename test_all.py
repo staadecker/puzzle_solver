@@ -28,7 +28,7 @@ import pytest
         ),
     ],
 )
-def test_grid_state_print(box_size, expected_result, capsys):
+def test_grid_state_print(box_size, expected_result, ):
     grid_state = GridState(size=4, box_size=box_size, max_value=4)
     grid_state.data = [
         [1, 2, 3, 4],
@@ -37,10 +37,7 @@ def test_grid_state_print(box_size, expected_result, capsys):
         [4, 3, 2, 1],
     ]
 
-    grid_state.print()
-    captured = capsys.readouterr()
-    print(captured.out)
-    assert captured.out == expected_result
+    assert str(grid_state) == expected_result
 
 
 if __name__ == "__main__":

@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Self, Callable, Generic, TypeVar, Iterable, Sequence, Optional
+from typing import Self, Generic, TypeVar, Iterable, Sequence, Optional
+
+from util import grid_data_to_str
 
 
 class State(ABC):
@@ -8,16 +10,19 @@ class State(ABC):
         self.moves_played = moves_played
 
     @abstractmethod
-    def print(self): ...
+    def __str__(self) -> str:
+        raise NotImplementedError()
 
     def copy(self) -> Self:  # not abstract method so we can run test
         raise NotImplementedError()
 
     @abstractmethod
     def generate_legal_moves(self) -> list[list["Move"]]:
-        """Generate all legal moves from the current state.
+        """Generate all legal moves from the current state grouped by cell.
 
-        Can also generate a single move if it is forced.
+        If a cell has only one legal move, return only that cell.
+        Any move can be considered legal as long as it is not the last move (only legal end states should be outputted).
+        However, the more moves that can be ruled illegal, the faster the solver will run.
         """
 
     @abstractmethod
@@ -48,12 +53,13 @@ class ComboMove(Move[S]):
         for move in self.moves:
             move.play(state)
 
+
 class GridState(State, Generic[S]):
     UP = (-1, 0)
     DOWN = (1, 0)
     LEFT = (0, -1)
     RIGHT = (0, 1)
-    DIRECTIONS = [UP, DOWN, LEFT, RIGHT]
+    DIRECTIONS = (UP, DOWN, LEFT, RIGHT)
 
     def __init__(
         self, size: int, max_value, box_size=None, moves_played=0, starting_state=None
@@ -89,67 +95,51 @@ class GridState(State, Generic[S]):
             for j in range(self._box_size)
         )
 
-    def neighbors(
-        self, row: int, col: int, diagonal: bool = False
-    ) -> list[Optional[int]]:
-        assert not diagonal, "Diagonal neighbors not implemented."
-        return [self.data[r][c] for r, c in self.neighbors_pos(row, col)]
+    def offset(self, cell, direction):
+        return (cell[0] + direction[0], cell[1] + direction[1])
 
-    def neighbors_pos(self, row: int, col: int) -> Iterable[tuple[int, int]]:
-        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+    def neighbors(
+        self,
+        row: int,
+        col: int,
+        diagonal: bool = False,
+        with_pos: bool = False,
+        directions=DIRECTIONS,
+    ):
+        assert not diagonal, "Diagonal neighbors not implemented."
+        return [
+            (r, c, self.data[r][c]) if with_pos else self.data[r][c]
+            for r, c in self.neighbors_pos(row, col, directions)
+        ]
+
+    def neighbors_pos(
+        self, row: int, col: int, directions=DIRECTIONS
+    ) -> Iterable[tuple[int, int]]:
         for dr, dc in directions:
             if 0 <= row + dr < self.size and 0 <= col + dc < self.size:
                 yield (row + dr, col + dc)
+
+    def _iter_rect(self, start_row, start_col, end_row, end_col):
+        for r in range(start_row, end_row + 1):
+            for c in range(start_col, end_col + 1):
+                yield (r, c, self.data[r][c])
 
     def generate_legal_moves(self) -> list[list[Move[S]]]:
         all_legal_moves = []
         for row, col, value in self.iter_cells():
             if value is not None:
                 continue
-            legal_moves = self._generate_legal_moves_for_cell(row, col)
+            legal_moves = self._generate_plausible_moves_for_cell(row, col)
             if len(legal_moves) == 1:
                 return [legal_moves]
             all_legal_moves.append(legal_moves)
         return all_legal_moves
 
-    def _generate_legal_moves_for_cell(self, row: int, col: int) -> list[Move[S]]:
+    def _generate_plausible_moves_for_cell(self, row: int, col: int) -> list[Move[S]]:
         raise NotImplementedError()
 
-    def print(self):
-        if self._box_size:
-            num_boxes = self.size // self._box_size
-            box_edge = "═" * (self._box_size * 2 + 1)
-            print("╔" + (box_edge + "╦") * (num_boxes - 1) + box_edge + "╗")
-
-            for i, row in enumerate(self.data):
-                print("║", end=" ")
-                for j, cell in enumerate(row):
-                    if cell is None:
-                        cell = " "
-                    print(cell, end=" ")
-                    if (
-                        (j + 1) % self._box_size == 0
-                        and self._box_size
-                        and j + 1 < self.size
-                    ):
-                        print("║", end=" ")
-                print("║")
-                if (
-                    (i + 1) % self._box_size == 0
-                    and self._box_size
-                    and i + 1 < self.size
-                ):
-                    print("╠" + (box_edge + "╬") * (num_boxes - 1) + box_edge + "╣")
-            print("╚" + (box_edge + "╩") * (num_boxes - 1) + box_edge + "╝")
-        else:
-            print("╔" + "═" * (self.size * 2 + 1) + "╗")
-            for i, row in enumerate(self.data):
-                print(
-                    "║ "
-                    + " ".join(" " if cell is None else str(cell) for cell in row)
-                    + " ║"
-                )
-            print("╚" + "═" * (self.size * 2 + 1) + "╝")
+    def __str__(self) -> str:
+        return grid_data_to_str(self.data, self._box_size)
 
 
 class ShadedGridState(GridState):
@@ -160,17 +150,14 @@ class ShadedGridState(GridState):
         super().__init__(*args, **kwargs, max_value=2, box_size=None)
 
     def __str__(self) -> str:
-        result = "╔" + "═" * (self.size * 2 + 1) + "╗\n"
-        for row in self.data:
-            result += (
-                "║ "
-                + " ".join(
-                    " " if cell is None else ("█" if cell == 2 else "▒") for cell in row
-                )
-                + " ║\n"
-            )
-        result += "╚" + "═" * (self.size * 2 + 1) + "╝\n"
-        return result
+        pretty_data = [
+            [
+                "█" if cell == self.SHADED else ("▒" if cell == self.UNSHADED else " ")
+                for cell in row
+            ]
+            for row in self.data
+        ]
+        return grid_data_to_str(pretty_data)
 
 
 class GridMove(Move[GridState[S]]):
@@ -182,6 +169,10 @@ class GridMove(Move[GridState[S]]):
 
     def _play(self, state: GridState[S]) -> None:
         state.data[self.row][self.col] = self.value
+
+    def __repr__(self) -> str:
+        return f"Place {self.value} at ({self.row}, {self.col})"
+
 
 class SolutionFound(Exception, Generic[S]):
     def __init__(self, state: S):
@@ -290,9 +281,10 @@ class GameTreeRoot(GameTreeNode[S]):
 
     def replace_child_with(self, move: Move[S] | None, new_child: "GameTreeNode[S]"):
         self.starting_node = new_child
-        print(f"Root node on move {self.starting_node.state.moves_played}")
+        print(self.starting_node.state)
 
     def mark_child_as_illegal(self, child: "GameTreeNode[S]"):
+        print(child.state)
         raise Exception("No solution exists.")
 
 
@@ -333,7 +325,7 @@ class GameEngine(Generic[S]):
         if best_node is None:
             raise Exception("No moves to explore.")
 
-        print(f"Exploring move at depth {depth} with {best_num} options.")
+        # print(f"Exploring move at depth {depth} with {best_num} options.")
         return best_node, best_move
 
     def build_tree(self) -> GameTreeNode[S]:
